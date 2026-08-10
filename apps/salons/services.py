@@ -57,12 +57,30 @@ def create_salon_service(salon, name, duration_minutes, price, description="", i
         is_active=is_active
     )
 
+# def update_salon_service(service, **kwargs):
+#     for field, value in kwargs.items():
+#         if hasattr(service, field) and value is not None:
+#             setattr(service, field, value)
+#     service.save()
+#     return service
+
+
 def update_salon_service(service, **kwargs):
     for field, value in kwargs.items():
-        if hasattr(service, field) and value is not None:
+        if value is None:
+            continue
+            
+        if hasattr(service, field):
+            # Check if this is a ForeignKey field
+            field_obj = service._meta.get_field(field)
+            if field_obj.is_relation and field_obj.many_to_one:
+                # It's a ForeignKey - need to get the instance
+                related_model = field_obj.related_model
+                value = related_model.objects.get(id=value)
             setattr(service, field, value)
     service.save()
     return service
+
 
 def update_business_hours(business_hour, opening_time, closing_time, is_closed=False):
     business_hour.opening_time = opening_time

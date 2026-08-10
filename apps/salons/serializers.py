@@ -16,9 +16,11 @@ class SalonImageSerializer(serializers.ModelSerializer):
 
 
 class SalonServiceSerializer(serializers.ModelSerializer):
+    salon = serializers.UUIDField()
+    
     class Meta:
         model = SalonService
-        fields = ('id', 'name', 'description', 'duration_minutes', 'price', 'is_active')
+        fields = ('id', 'salon', 'name', 'description', 'duration_minutes', 'price', 'is_active')
 
 
 class SalonSerializer(serializers.ModelSerializer):

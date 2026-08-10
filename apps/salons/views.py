@@ -96,10 +96,14 @@ class SalonServiceViewSet(viewsets.ModelViewSet):
         return [permissions.AllowAny()]
         
     def perform_create(self, serializer):
-        salon = serializer.validated_data.get('salon')
-        if salon.manager.user != self.request.user:
+        salon_id = serializer.validated_data.get('salon')
+        try:
+            salon = Salon.objects.get(id=salon_id, manager__user=self.request.user)
+        except Salon.DoesNotExist:
             raise PermissionDenied("You do not own this salon.")
-        service = create_salon_service(**serializer.validated_data)
+        
+        validated_data = {**serializer.validated_data, 'salon': salon}
+        service = create_salon_service(**validated_data)
         serializer.instance = service
         
     def perform_update(self, serializer):
