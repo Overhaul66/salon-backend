@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from apps.users.models import SalonEmployee
-from apps.salons.models import Salon
+from apps.salons.models import Salon, SalonService
 
 class ManageEmployeeSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', read_only=True)
@@ -9,15 +9,20 @@ class ManageEmployeeSerializer(serializers.ModelSerializer):
     phone = serializers.CharField(source='user.phone', required=False, allow_blank=True)
     is_active = serializers.BooleanField(source='user.is_active', required=False)
     salon_name = serializers.CharField(source='salon.name', read_only=True)
+    services = serializers.PrimaryKeyRelatedField(many=True, queryset=SalonService.objects.all(), required=False)
+    service_names = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = SalonEmployee
         fields = (
             'id', 'email', 'first_name', 'last_name', 'phone', 'salon', 
-            'salon_name', 'position', 'bio', 'is_available', 'employment_date', 
+            'salon_name', 'position', 'services', 'service_names', 'bio', 'is_available', 'employment_date', 
             'is_active', 'created_at'
         )
         read_only_fields = ('id', 'email', 'created_at')
+
+    def get_service_names(self, obj):
+        return list(obj.services.values_list('name', flat=True))
 
 
 class CreateEmployeeSerializer(serializers.Serializer):
@@ -27,7 +32,7 @@ class CreateEmployeeSerializer(serializers.Serializer):
     last_name = serializers.CharField(required=False, default="", allow_blank=True)
     phone = serializers.CharField(required=False, default="", allow_blank=True)
     salon_id = serializers.PrimaryKeyRelatedField(queryset=Salon.objects.all(), source='salon')
-    position = serializers.CharField()
+    service_ids = serializers.PrimaryKeyRelatedField(many=True, queryset=SalonService.objects.all(), source='services', required=False)
     bio = serializers.CharField(required=False, default="", allow_blank=True)
 
 

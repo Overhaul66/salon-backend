@@ -1,9 +1,11 @@
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils.dateparse import parse_date
+from django.core.exceptions import ValidationError as DjangoValidationError
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter, OpenApiTypes
 
 from apps.users.permissions import IsSalonManager, IsSalonEmployee
 from .models import Appointment
@@ -23,6 +25,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     permission_classes = (permissions.IsAuthenticated, AppointmentAccessPermission)
     filter_backends = (DjangoFilterBackend,)
     filterset_fields = ('salon', 'employee', 'status', 'appointment_date')
+    tags = ['appointments']
     
     def get_queryset(self):
         user = self.request.user
@@ -42,6 +45,10 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             
         return Appointment.objects.none()
         
+    @extend_schema(
+        request=AppointmentCreateSerializer,
+        responses={201: AppointmentSerializer},
+    )
     def create(self, request, *args, **kwargs):
         if request.user.role != 'CUSTOMER' or not hasattr(request.user, 'customer_profile'):
             return Response({"detail": "Only customers can book appointments."}, status=status.HTTP_403_FORBIDDEN)
@@ -52,20 +59,30 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         customer = request.user.customer_profile
         validated_data = serializer.validated_data
         
-        appointment = create_appointment(
-            customer=customer,
-            salon=validated_data['salon'],
-            service=validated_data['service'],
-            date=validated_data['appointment_date'],
-            start_time=validated_data['start_time'],
-            booking_notes=validated_data.get('booking_notes', '')
-        )
+        try:
+            appointment = create_appointment(
+                customer=customer,
+                salon=validated_data['salon'],
+                service=validated_data['service'],
+                date=validated_data['appointment_date'],
+                start_time=validated_data['start_time'],
+                booking_notes=validated_data.get('booking_notes', '')
+            )
+        except DjangoValidationError as e:
+            return Response(
+                {"detail": "; ".join(e.messages)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         
         response_serializer = self.get_serializer(appointment)
         response = Response(response_serializer.data, status=status.HTTP_201_CREATED)
         response.custom_message = "Appointment booked successfully."
         return response
         
+    @extend_schema(
+        request=AppointmentCancelSerializer,
+        responses={200: AppointmentSerializer},
+    )
     @action(detail=True, methods=['patch'], url_path='cancel', permission_classes=[permissions.IsAuthenticated, AppointmentAccessPermission])
     def cancel(self, request, pk=None):
         appointment = self.get_object()
@@ -78,6 +95,28 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         return response
 
 
+@extend_schema(
+    tags=['manager'],
+    responses={
+        200: inline_serializer(
+            'ManagerDashboardResponse',
+            fields={
+                'today_summary': inline_serializer(
+                    'TodaySummary',
+                    fields={
+                        'pending': serializers.IntegerField(),
+                        'confirmed': serializers.IntegerField(),
+                        'completed': serializers.IntegerField(),
+                        'revenue': serializers.DecimalField(max_digits=12, decimal_places=2),
+                    },
+                ),
+                'total_revenue': serializers.DecimalField(max_digits=12, decimal_places=2),
+                'salons_count': serializers.IntegerField(),
+                'recent_appointments': AppointmentSerializer(many=True),
+            },
+        ),
+    },
+)
 class ManagerDashboardView(APIView):
     permission_classes = (permissions.IsAuthenticated, IsSalonManager)
     
@@ -93,6 +132,11 @@ class ManagerDashboardView(APIView):
         return response
 
 
+@extend_schema(
+    tags=['my'],
+    parameters=[OpenApiParameter('date', OpenApiTypes.DATE, description='Filter by date (YYYY-MM-DD).')],
+    responses={200: AppointmentSerializer(many=True)},
+)
 class EmployeeAppointmentsView(APIView):
     permission_classes = (permissions.IsAuthenticated, IsSalonEmployee)
     
@@ -108,6 +152,11 @@ class EmployeeAppointmentsView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+    tags=['my'],
+    request=AppointmentStatusUpdateSerializer,
+    responses={200: AppointmentSerializer},
+)
 class EmployeeAppointmentStatusView(APIView):
     permission_classes = (permissions.IsAuthenticated, IsSalonEmployee)
     

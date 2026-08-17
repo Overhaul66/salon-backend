@@ -19,7 +19,6 @@ class Salon(BaseModel):
     slug = models.SlugField(max_length=255, unique=True)
     description = models.TextField(blank=True)
     phone = models.CharField(max_length=20, unique=True)
-    email = models.EmailField()
     address = models.CharField(max_length=255)
     city = models.CharField(max_length=100)
     country = models.CharField(max_length=100)
@@ -55,9 +54,32 @@ class SalonImage(models.Model):
         return f"Gallery image for {self.salon.name}"
 
 
+class ServiceCatalog(BaseModel):
+    CATEGORY_CHOICES = (
+        ('MEN', 'Men'),
+        ('WOMEN', 'Women'),
+        ('UNISEX', 'Unisex'),
+    )
+
+    name = models.CharField(max_length=255, unique=True)
+    description = models.TextField(blank=True)
+    duration_minutes = models.PositiveIntegerField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    category = models.CharField(max_length=15, choices=CATEGORY_CHOICES, default='UNISEX')
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['category', 'name']
+        db_table = 'service_catalog'
+
+    def __str__(self):
+        return f"{self.get_category_display()} - {self.name}"
+
+
 class SalonService(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     salon = models.ForeignKey(Salon, on_delete=models.CASCADE, related_name='services')
+    catalog_item = models.ForeignKey(ServiceCatalog, on_delete=models.PROTECT, related_name='salon_services', null=True, blank=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     duration_minutes = models.PositiveIntegerField()
@@ -66,9 +88,28 @@ class SalonService(models.Model):
 
     class Meta:
         db_table = 'salon_services'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['salon', 'catalog_item'],
+                name='unique_salon_catalog_item',
+                nulls_distinct=True,
+            ),
+        ]
 
     def __str__(self):
         return f"{self.name} - {self.salon.name}"
+
+
+class SalonFavourite(BaseModel):
+    customer = models.ForeignKey('users.Customer', on_delete=models.CASCADE, related_name='favourite_salons')
+    salon = models.ForeignKey(Salon, on_delete=models.CASCADE, related_name='favourited_by')
+
+    class Meta:
+        db_table = 'salon_favourites'
+        unique_together = ('customer', 'salon')
+
+    def __str__(self):
+        return f"{self.customer.user.email} favours {self.salon.name}"
 
 
 class BusinessHours(models.Model):

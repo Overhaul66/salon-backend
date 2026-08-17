@@ -32,6 +32,14 @@ drf-spectacular-sidecar
 Pillow
 
 # ==========================
+# MinIO / S3 Storage
+# ==========================
+django-minio-backend
+boto3
+django-storages
+minio
+
+# ==========================
 # CORS
 # ==========================
 django-cors-headers

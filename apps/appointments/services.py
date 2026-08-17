@@ -17,6 +17,7 @@ def calculate_end_time(start_time, duration_minutes):
 def find_available_employee(salon, service, date, start_time):
     """
     Finds the best available employee for a service on a given date and time.
+    Only employees who can perform the service are considered.
     Workload balance is achieved by selecting the employee with the minimum number
     of appointments already assigned for that day.
     """
@@ -35,14 +36,17 @@ def find_available_employee(salon, service, date, start_time):
         if start_time < salon.opening_time or end_time > salon.closing_time:
             raise ValidationError(f"The requested time is outside salon business hours ({salon.opening_time} - {salon.closing_time}).")
 
-    # Get active employees of this salon
-    employees = SalonEmployee.objects.filter(salon=salon, is_available=True)
-    if not employees.exists():
-        raise ValidationError("No active employees are available at this salon.")
-        
+    # Active employees of this salon who can perform this service
+    eligible = SalonEmployee.objects.filter(salon=salon, is_available=True, services=service)
+    if not eligible.exists():
+        raise ValidationError("No employee at this salon currently performs this service.")
+    
+    # Only a single employee can do this service — surface a clear "busy" message
+    single_employee = eligible.count() == 1
+
     candidates = []
     
-    for employee in employees:
+    for employee in eligible:
         # On-demand generate availability
         generate_employee_availability(employee, date)
         
@@ -80,6 +84,8 @@ def find_available_employee(salon, service, date, start_time):
         candidates.append((employee, workload))
         
     if not candidates:
+        if single_employee:
+            raise ValidationError("The stylist who performs this service is busy at that time. Please choose another date or time.")
         raise ValidationError("No employees are available at this date and time.")
         
     # Balance workload (select candidate with lowest workload)

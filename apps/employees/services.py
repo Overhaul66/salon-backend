@@ -8,9 +8,14 @@ def check_manager_owns_salon(manager, salon):
         raise ValidationError("You do not own this salon.")
 
 @transaction.atomic
-def create_salon_employee(manager, email, password, salon, position, first_name="", last_name="", phone="", bio=""):
+def create_salon_employee(manager, email, password, salon, first_name="", last_name="", phone="", bio="", services=None):
     check_manager_owns_salon(manager, salon)
     
+    services = services or []
+    for service in services:
+        if service.salon_id != salon.id:
+            raise ValidationError("All selected services must belong to the employee's salon.")
+
     user = register_user(
         email=email,
         password=password,
@@ -20,12 +25,16 @@ def create_salon_employee(manager, email, password, salon, position, first_name=
         phone=phone,
         # Profile fields
         salon=salon,
-        position=position,
+        position="",
         bio=bio,
         is_available=True
     )
     
-    return user.employee_profile
+    employee = user.employee_profile
+    if services:
+        employee.services.set(services)
+    
+    return employee
 
 @transaction.atomic
 def update_salon_employee(manager, employee, **kwargs):
@@ -47,6 +56,14 @@ def update_salon_employee(manager, employee, **kwargs):
         if field in kwargs and kwargs[field] is not None:
             setattr(employee, field, kwargs[field])
     employee.save()
+
+    # Update M2M services
+    services = kwargs.pop('services', None)
+    if services is not None:
+        for service in services:
+            if service.salon_id != employee.salon_id:
+                raise ValidationError("All selected services must belong to the employee's salon.")
+        employee.services.set(services)
     
     return employee
 

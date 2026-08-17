@@ -2,6 +2,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 import datetime
 from django.utils.dateparse import parse_date
 
@@ -16,8 +17,17 @@ class EmployeeAvailabilityViewSet(viewsets.ModelViewSet):
     permission_classes = (permissions.IsAuthenticated, IsEmployeeOrManager)
     filter_backends = (DjangoFilterBackend,)
     filterset_fields = ('employee', 'date', 'status')
+    tags = ['availabilities']
 
 
+@extend_schema(
+    tags=['my'],
+    parameters=[
+        OpenApiParameter('start_date', OpenApiTypes.DATE, description='Start date (YYYY-MM-DD). Defaults to today.'),
+        OpenApiParameter('end_date', OpenApiTypes.DATE, description='End date (YYYY-MM-DD). Defaults to start_date + 7 days.'),
+    ],
+    responses={200: EmployeeAvailabilitySerializer(many=True)},
+)
 class MyScheduleView(APIView):
     permission_classes = (permissions.IsAuthenticated,)
     

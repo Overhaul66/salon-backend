@@ -15,7 +15,8 @@ class TestSchedulingEngine:
         manager_user = register_user(
             email="manager@test.com",
             password="password123",
-            role="SALON_MANAGER"
+            role="SALON_MANAGER",
+            phone="3333333333"
         )
         self.manager = manager_user.manager_profile
         
@@ -23,7 +24,7 @@ class TestSchedulingEngine:
             manager=self.manager,
             name="Test Salon",
             phone="555-0000",
-            email="test@salon.com",
+
             address="123 Salon St",
             city="TestCity",
             country="TestCountry",
@@ -44,9 +45,11 @@ class TestSchedulingEngine:
             role="SALON_EMPLOYEE",
             salon=self.salon,
             position="Stylist",
+            phone="1111111111",
             bio="Bio 1"
         )
         self.emp1 = emp_u1.employee_profile
+        self.emp1.services.add(self.service)
         
         emp_u2 = register_user(
             email="emp2@test.com",
@@ -54,14 +57,17 @@ class TestSchedulingEngine:
             role="SALON_EMPLOYEE",
             salon=self.salon,
             position="Barber",
+            phone="2222222222",
             bio="Bio 2"
         )
         self.emp2 = emp_u2.employee_profile
+        self.emp2.services.add(self.service)
         
         cust_u = register_user(
             email="cust@test.com",
             password="password123",
-            role="CUSTOMER"
+            role="CUSTOMER",
+            phone="4444444444"
         )
         self.customer = cust_u.customer_profile
         
@@ -71,6 +77,32 @@ class TestSchedulingEngine:
         with pytest.raises(ValidationError) as exc:
             find_available_employee(self.salon, self.service, self.date, datetime.time(8, 30))
         assert "outside salon business hours" in str(exc.value)
+
+    def test_create_salon_accepts_per_day_business_hours(self):
+        salon = create_salon(
+            manager=self.manager,
+            name="Custom Hours Salon",
+            phone="555-1111",
+
+            address="456 Salon St",
+            city="TestCity",
+            country="TestCountry",
+            opening_time=datetime.time(9, 0),
+            closing_time=datetime.time(18, 0),
+            business_hours=[
+                {"weekday": 0, "opening_time": datetime.time(9, 30), "closing_time": datetime.time(17, 0), "is_closed": False},
+                {"weekday": 1, "opening_time": datetime.time(10, 0), "closing_time": datetime.time(18, 0), "is_closed": False},
+                {"weekday": 2, "opening_time": datetime.time(9, 0), "closing_time": datetime.time(17, 30), "is_closed": False},
+                {"weekday": 6, "opening_time": datetime.time(11, 0), "closing_time": datetime.time(15, 0), "is_closed": False},
+            ],
+        )
+
+        monday = salon.business_hours.get(weekday=0)
+        assert monday.opening_time == datetime.time(9, 30)
+        assert monday.closing_time == datetime.time(17, 0)
+        sunday = salon.business_hours.get(weekday=6)
+        assert sunday.opening_time == datetime.time(11, 0)
+        assert sunday.closing_time == datetime.time(15, 0)
 
     def test_workload_balancing(self):
         # First booking - should go to one of them

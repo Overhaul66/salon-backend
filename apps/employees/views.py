@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
 from django.core.exceptions import ValidationError
+from drf_spectacular.utils import extend_schema
 
 from apps.users.permissions import IsSalonManager
 from apps.users.models import SalonEmployee
@@ -15,11 +16,16 @@ class EmployeeManagementViewSet(viewsets.ModelViewSet):
     permission_classes = (permissions.IsAuthenticated, IsSalonManager)
     filter_backends = (DjangoFilterBackend,)
     filterset_fields = ('salon', 'is_available')
+    tags = ['employees']
     
     def get_queryset(self):
         manager = self.request.user.manager_profile
         return list_employees_for_manager(manager)
         
+    @extend_schema(
+        request=CreateEmployeeSerializer,
+        responses={201: ManageEmployeeSerializer},
+    )
     def create(self, request, *args, **kwargs):
         manager = request.user.manager_profile
         serializer = CreateEmployeeSerializer(data=request.data)
@@ -33,11 +39,11 @@ class EmployeeManagementViewSet(viewsets.ModelViewSet):
                 email=validated_data['email'],
                 password=validated_data['password'],
                 salon=validated_data['salon'],
-                position=validated_data['position'],
                 first_name=validated_data.get('first_name', ''),
                 last_name=validated_data.get('last_name', ''),
                 phone=validated_data.get('phone', ''),
-                bio=validated_data.get('bio', '')
+                bio=validated_data.get('bio', ''),
+                services=validated_data.get('services')
             )
         except ValidationError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -61,6 +67,10 @@ class EmployeeManagementViewSet(viewsets.ModelViewSet):
         updated = update_salon_employee(manager, employee, **validated_data)
         serializer.instance = updated
         
+    @extend_schema(
+        request=ResetEmployeePasswordSerializer,
+        responses={200: None},
+    )
     @action(detail=True, methods=['post'], url_path='reset-password')
     def reset_password(self, request, pk=None):
         manager = request.user.manager_profile

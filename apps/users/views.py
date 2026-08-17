@@ -1,9 +1,10 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, permissions
+from rest_framework import status, permissions, serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from drf_spectacular.utils import extend_schema, inline_serializer
 
 from .services import register_user, change_user_password, request_password_reset, reset_user_password
 from .serializers import (
@@ -21,10 +22,49 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return data
 
 # login view
+@extend_schema(
+    tags=['auth'],
+    request=inline_serializer(
+        'LoginRequest',
+        fields={
+            'email': serializers.EmailField(),
+            'password': serializers.CharField(write_only=True),
+        },
+    ),
+    responses={
+        200: inline_serializer(
+            'LoginResponse',
+            fields={
+                'access': serializers.CharField(),
+                'refresh': serializers.CharField(),
+                'user': CustomUserSerializer(),
+            },
+        ),
+    },
+)
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
 
+@extend_schema(
+    tags=['auth'],
+    request=RegisterSerializer,
+    responses={
+        201: inline_serializer(
+            'RegisterResponse',
+            fields={
+                'user': CustomUserSerializer(),
+                'tokens': inline_serializer(
+                    'RegisterTokens',
+                    fields={
+                        'refresh': serializers.CharField(),
+                        'access': serializers.CharField(),
+                    },
+                ),
+            },
+        ),
+    },
+)
 class RegisterView(APIView):
     permission_classes = (permissions.AllowAny,)
     
@@ -64,6 +104,14 @@ class RegisterView(APIView):
         return response
 
 
+@extend_schema(
+    tags=['auth'],
+    request=inline_serializer(
+        'LogoutRequest',
+        fields={'refresh': serializers.CharField()},
+    ),
+    responses={200: None},
+)
 class LogoutView(APIView):
     permission_classes = (permissions.IsAuthenticated,)
     
@@ -79,6 +127,17 @@ class LogoutView(APIView):
             return Response({"detail": "Token is invalid or expired."}, status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema(
+    tags=['auth'],
+    request=inline_serializer(
+        'ChangePasswordRequest',
+        fields={
+            'old_password': serializers.CharField(write_only=True),
+            'new_password': serializers.CharField(write_only=True, min_length=8),
+        },
+    ),
+    responses={200: None},
+)
 class ChangePasswordView(APIView):
     permission_classes = (permissions.IsAuthenticated,)
     
@@ -97,6 +156,22 @@ class ChangePasswordView(APIView):
         return response
 
 
+@extend_schema(
+    tags=['auth'],
+    request=inline_serializer(
+        'PasswordResetRequest',
+        fields={'email': serializers.EmailField()},
+    ),
+    responses={
+        200: inline_serializer(
+            'PasswordResetResponse',
+            fields={
+                'uidb64': serializers.CharField(),
+                'token': serializers.CharField(),
+            },
+        ),
+    },
+)
 class PasswordResetRequestView(APIView):
     permission_classes = (permissions.AllowAny,)
     
@@ -116,6 +191,18 @@ class PasswordResetRequestView(APIView):
         return response
 
 
+@extend_schema(
+    tags=['auth'],
+    request=inline_serializer(
+        'PasswordResetConfirmRequest',
+        fields={
+            'uidb64': serializers.CharField(),
+            'token': serializers.CharField(),
+            'new_password': serializers.CharField(write_only=True, min_length=8),
+        },
+    ),
+    responses={200: None},
+)
 class PasswordResetConfirmView(APIView):
     permission_classes = (permissions.AllowAny,)
     

@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "drf_spectacular",
     "drf_spectacular_sidecar",
+    "storages",
     
     # Internal Apps
     "apps.common",
@@ -115,12 +116,50 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
+# ==========================
+# Static & Media Files Configuration
+# ==========================
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# ==========================
+# MinIO / S3 Storage Configuration (via django-storages S3Boto3Storage)
+# ========================salon==
+USE_MINIO = config("USE_MINIO", default=False, cast=bool)
+
+if USE_MINIO:
+    # AWS / S3-compatible (MinIO) Configuration
+    AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID", default="minioadmin")
+    AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY", default="minioadmin")
+    AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default="media")
+    AWS_S3_ENDPOINT_URL = config("AWS_S3_ENDPOINT_URL", default="http://localhost:9000")
+    AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="us-east-1")
+    AWS_S3_ADDRESSING_STYLE = config("AWS_S3_ADDRESSING_STYLE", default="path")
+    AWS_S3_FILE_OVERWRITE = config("AWS_S3_FILE_OVERWRITE", default=False, cast=bool)
+    AWS_QUERYSTRING_AUTH = config("AWS_QUERYSTRING_AUTH", default=False, cast=bool)
+    AWS_DEFAULT_ACL = config("AWS_DEFAULT_ACL", default="public-read")
+    AWS_S3_OBJECT_PARAMETERS = {
+        "CacheControl": "max-age=86400",
+    }
+
+    # Override media settings for MinIO
+    MEDIA_URL = config("MEDIA_URL", default=f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/")
+    # Public host used to build file URLs returned by the API (must be reachable from clients)
+    AWS_S3_CUSTOM_DOMAIN = config("AWS_S3_CUSTOM_DOMAIN", default="")
+    AWS_S3_URL_PROTOCOL = config("AWS_S3_URL_PROTOCOL", default="http:")
+    AWS_S3_USE_SSL = config("AWS_S3_USE_SSL", default=False, cast=bool)
+
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -169,6 +208,15 @@ SPECTACULAR_SETTINGS = {
     "SWAGGER_UI_DIST": "SIDECAR",
     "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
     "REDOC_DIST": "SIDECAR",
+    "ENUM_NAME_OVERRIDES": {
+        "AppointmentStatus": "apps.appointments.models.Appointment.STATUS_CHOICES",
+        "AvailabilityStatus": "apps.scheduling.models.EmployeeAvailability.STATUS_CHOICES",
+        "Gender": "apps.users.models.Customer.GENDER_CHOICES",
+        "UserRole": "apps.users.models.CustomUser.ROLE_CHOICES",
+        "GenderType": "apps.salons.models.Salon.GENDER_TYPE_CHOICES",
+        "SalonStatus": "apps.salons.models.Salon.STATUS_CHOICES",
+        "PreferredNotification": "apps.users.models.Customer.NOTIFICATION_CHOICES",
+    },
 }
 
 # CORS Configuration

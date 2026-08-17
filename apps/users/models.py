@@ -93,7 +93,8 @@ class SalonEmployee(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='employee_profile')
     # Using lazy relation to avoid circular dependency
     salon = models.ForeignKey('salons.Salon', on_delete=models.CASCADE, related_name='employees', null=True, blank=True)
-    position = models.CharField(max_length=100)
+    position = models.CharField(max_length=100, blank=True, default='')
+    services = models.ManyToManyField('salons.SalonService', related_name='employees', blank=True)
     bio = models.TextField(blank=True)
     is_available = models.BooleanField(default=True)
     employment_date = models.DateField() #when the employee was added not hired
