@@ -2,17 +2,14 @@ import os
 from pathlib import Path
 from datetime import timedelta
 import urllib.parse as urlparse
-from decouple import Config, RepositoryEnv
+from decouple import AutoConfig
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables from local.env if exists, otherwise fallback to .env.example
-env_path = BASE_DIR / "local.env"
-if env_path.exists():
-    config = Config(RepositoryEnv(env_path))
-else:
-    config = Config(RepositoryEnv(BASE_DIR / ".env.example"))
+# AutoConfig reads real environment variables first (used by Render/Heroku),
+# then falls back to local.env / .env in BASE_DIR.
+config = AutoConfig(search_path=BASE_DIR)
 
 SECRET_KEY = config("SECRET_KEY", default="django-insecure-%_aijh#dbhvhuzm5!9+1!!tnqjzgg9k-a)i6zi+r#y57c=49g%")
 DEBUG = config("DEBUG", default=True, cast=bool)
@@ -49,6 +46,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware", # Must be before common
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -123,7 +121,16 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = Path(config("MEDIA_ROOT", default=str(BASE_DIR / "media")))
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # ==========================
 # MinIO / S3 Storage Configuration (via django-storages S3Boto3Storage)
@@ -152,13 +159,8 @@ if USE_MINIO:
     AWS_S3_URL_PROTOCOL = config("AWS_S3_URL_PROTOCOL", default="http:")
     AWS_S3_USE_SSL = config("AWS_S3_USE_SSL", default=False, cast=bool)
 
-    STORAGES = {
-        "default": {
-            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-        },
-        "staticfiles": {
-            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
-        },
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
     }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -221,3 +223,12 @@ SPECTACULAR_SETTINGS = {
 
 # CORS Configuration
 CORS_ALLOW_ALL_ORIGINS = True
+
+# ==========================
+# Production Security
+# ==========================
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=True, cast=bool)
+    SESSION_COOKIE_SECURE = config("SESSION_COOKIE_SECURE", default=True, cast=bool)
+    CSRF_COOKIE_SECURE = config("CSRF_COOKIE_SECURE", default=True, cast=bool)
