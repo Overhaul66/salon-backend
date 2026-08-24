@@ -3,7 +3,13 @@ from rest_framework.renderers import JSONRenderer
 class ApiResponseRenderer(JSONRenderer):
     def render(self, data, accepted_media_type=None, renderer_context=None):
         response = renderer_context.get('response')
-        
+
+        # 204 No Content must have an empty body - wrapping it in the
+        # success envelope sends a 204 WITH a body, which violates the
+        # HTTP spec and makes React Native reject it as a network error.
+        if response is not None and response.status_code == 204:
+            return super().render(None, accepted_media_type, renderer_context)
+
         # If it is an error response, we format as success: False
         if response and response.status_code >= 400:
             if isinstance(data, dict) and "success" in data:
