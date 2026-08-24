@@ -6,6 +6,9 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
+from django.conf.urls.static import static
+from django.conf import settings
+
 
 def health(request):
     return JsonResponse({"status": "ok"})
@@ -27,3 +30,7 @@ urlpatterns = [
     path("api/", include("apps.appointments.urls")),
     path("api/", include("apps.notifications.urls")),
 ]
+
+
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+

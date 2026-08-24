@@ -8,7 +8,7 @@ def check_manager_owns_salon(manager, salon):
         raise ValidationError("You do not own this salon.")
 
 @transaction.atomic
-def create_salon_employee(manager, email, password, salon, first_name="", last_name="", phone="", bio="", services=None):
+def create_salon_employee(manager, email, password, salon, first_name="", last_name="", phone="", bio="", profile_picture=None, services=None):
     check_manager_owns_salon(manager, salon)
     
     services = services or []
@@ -23,6 +23,7 @@ def create_salon_employee(manager, email, password, salon, first_name="", last_n
         first_name=first_name,
         last_name=last_name,
         phone=phone,
+        profile_picture=profile_picture,
         # Profile fields
         salon=salon,
         position="",

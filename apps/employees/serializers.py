@@ -11,12 +11,13 @@ class ManageEmployeeSerializer(serializers.ModelSerializer):
     salon_name = serializers.CharField(source='salon.name', read_only=True)
     services = serializers.PrimaryKeyRelatedField(many=True, queryset=SalonService.objects.all(), required=False)
     service_names = serializers.SerializerMethodField(read_only=True)
+    profile_picture = serializers.ImageField(source='user.profile_picture', read_only=True)
 
     class Meta:
         model = SalonEmployee
         fields = (
             'id', 'email', 'first_name', 'last_name', 'phone', 'salon', 
-            'salon_name', 'position', 'services', 'service_names', 'bio', 'is_available', 'employment_date', 
+            'salon_name', 'profile_picture', 'position', 'services', 'service_names', 'bio', 'is_available', 'employment_date', 
             'is_active', 'created_at'
         )
         read_only_fields = ('id', 'email', 'created_at')
@@ -34,6 +35,7 @@ class CreateEmployeeSerializer(serializers.Serializer):
     salon_id = serializers.PrimaryKeyRelatedField(queryset=Salon.objects.all(), source='salon')
     service_ids = serializers.PrimaryKeyRelatedField(many=True, queryset=SalonService.objects.all(), source='services', required=False)
     bio = serializers.CharField(required=False, default="", allow_blank=True)
+    profile_picture = serializers.ImageField(required=False, allow_null=True)
 
 
 class ResetEmployeePasswordSerializer(serializers.Serializer):

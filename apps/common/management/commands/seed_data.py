@@ -104,6 +104,57 @@ class Command(BaseCommand):
                     "hours": week_hours(8, 17),
                 },
             },
+            {
+                "email": "dana@salon.com",
+                "first_name": "Dana",
+                "last_name": "Brooks",
+                "phone": "+1-555-0104",
+                "salon": {
+                    "name": "Bella Vista Hair & Beauty",
+                    "phone": "+1-555-1004",
+                    "address": "321 Sunset Strip",
+                    "city": "Miami",
+                    "country": "USA",
+                    "opening_time": datetime.time(9, 0),
+                    "closing_time": datetime.time(19, 0),
+                    "gender_type": "UNISEX",
+                    "hours": week_hours(9, 19),
+                },
+            },
+            {
+                "email": "priya@salon.com",
+                "first_name": "Priya",
+                "last_name": "Sharma",
+                "phone": "+1-555-0105",
+                "salon": {
+                    "name": "Serenity Wellness Lounge",
+                    "phone": "+1-555-1005",
+                    "address": "77 Lotus Avenue",
+                    "city": "Austin",
+                    "country": "USA",
+                    "opening_time": datetime.time(8, 0),
+                    "closing_time": datetime.time(18, 0),
+                    "gender_type": "WOMEN_ONLY",
+                    "hours": week_hours(8, 18, closed_days=(6,)),
+                },
+            },
+            {
+                "email": "marcus@salon.com",
+                "first_name": "Marcus",
+                "last_name": "Reed",
+                "phone": "+1-555-0106",
+                "salon": {
+                    "name": "The Fade Factory",
+                    "phone": "+1-555-1006",
+                    "address": "12 Clipper Court",
+                    "city": "Austin",
+                    "country": "USA",
+                    "opening_time": datetime.time(10, 0),
+                    "closing_time": datetime.time(20, 0),
+                    "gender_type": "MEN_ONLY",
+                    "hours": week_hours(10, 20),
+                },
+            },
         ]
 
         salons = []
@@ -158,12 +209,33 @@ class Command(BaseCommand):
                 ("Eyebrow Shaping", 15, 12.00),
                 ("Waxing Session", 30, 35.00),
             ],
+            [
+                ("Balayage & Gloss", 120, 120.00),
+                ("Keratin Treatment", 90, 95.00),
+                ("Silk Press", 60, 60.00),
+                ("Luxury Manicure", 45, 35.00),
+            ],
+            [
+                ("Aromatherapy Massage", 60, 75.00),
+                ("Hot Stone Therapy", 75, 85.00),
+                ("HydraFacial Deluxe", 50, 65.00),
+                ("Lash Lift & Tint", 45, 50.00),
+            ],
+            [
+                ("Skin Fade", 30, 25.00),
+                ("Beard Sculpting", 25, 20.00),
+                ("Kids Cut", 20, 15.00),
+            ],
         ]
         salon_services = []
         for salon, svc_list in zip(salons, services_by_salon):
             for name, duration, price in svc_list:
                 salon_services.append(create_salon_service(salon, name, duration, price))
         self.stdout.write(f"  {len(salon_services)} services created")
+        # Group services by salon so appointments always pick a matching service
+        services_for = {}
+        for svc in salon_services:
+            services_for.setdefault(svc.salon_id, []).append(svc)
 
         # ============ 4. Employees ============
         self.stdout.write("Creating employees...")
@@ -184,6 +256,19 @@ class Command(BaseCommand):
                 ("emma.facial@salon.com", "Emma", "Green", "Esthetician", "Facials and skin care treatments."),
                 ("nina.wax@salon.com", "Nina", "Kaur", "Beauty Therapist", "Waxing, brows and spa rituals."),
             ],
+            3: [
+                ("leo.colorist@salon.com", "Leo", "Martinez", "Color Specialist", "Vivid colors and seamless blends."),
+                ("ava.style@salon.com", "Ava", "Kim", "Stylist", "Precision cuts for every hair type."),
+            ],
+            4: [
+                ("sofia.spa@salon.com", "Sofia", "Reyes", "Spa Therapist", "Relaxation and wellness treatments."),
+                ("mia.lash@salon.com", "Mia", "Chen", "Lash Technician", "Lash lifts, tints and extensions."),
+                ("zara.beauty@salon.com", "Zara", "Ali", "Beauty Therapist", "Facials, brows and skin care."),
+            ],
+            5: [
+                ("dre.fades@salon.com", "Andre", "Wright", "Master Barber", "Sharp fades and classic tapers."),
+                ("kai.cuts@salon.com", "Kai", "Brown", "Barber", "Quick, clean cuts with friendly chat."),
+            ],
         }
         employees = []
         for idx, salon in enumerate(salons):
@@ -199,6 +284,8 @@ class Command(BaseCommand):
                     position=position,
                     bio=bio,
                 )
+                # Employees can perform every service their salon offers
+                emp_user.employee_profile.services.set(services_for[salon.id])
                 employees.append(emp_user.employee_profile)
         self.stdout.write(f"  {len(employees)} employees created")
 
@@ -258,7 +345,8 @@ class Command(BaseCommand):
                 if BusinessHours.objects.filter(salon=salon, weekday=date.weekday(), is_closed=True).exists():
                     continue
                 customer = customers[(len(salons) + i) % len(customers)]
-                service = salon_services[i * 6 % len(salon_services)]
+                own = services_for[salon.id]
+                service = own[i % len(own)]
                 try:
                     appointment = create_appointment(
                         customer=customer,
@@ -293,8 +381,9 @@ class Command(BaseCommand):
             date = today + datetime.timedelta(days=day)
             if BusinessHours.objects.filter(salon=salon, weekday=date.weekday(), is_closed=True).exists():
                 continue
+            own = services_for[salon.id]
             customer = customers[idx % len(customers)]
-            service = salon_services[idx % len(salon_services)]
+            service = own[idx % len(own)]
             status = statuses[idx % len(statuses)]
             try:
                 appointment = create_appointment(
@@ -318,8 +407,9 @@ class Command(BaseCommand):
             salon = salons[h % len(salons)]
             if BusinessHours.objects.filter(salon=salon, weekday=today.weekday(), is_closed=True).exists():
                 continue
+            own = services_for[salon.id]
             customer = customers[(h + 4) % len(customers)]
-            service = salon_services[(h + 2) % len(salon_services)]
+            service = own[(h + 2) % len(own)]
             try:
                 appointment = create_appointment(
                     customer=customer,
@@ -356,7 +446,7 @@ class Command(BaseCommand):
         self.stdout.write("")
         self.stdout.write("Accounts (password: password123):")
         self.stdout.write("  Admin:    admin@salon.com")
-        self.stdout.write("  Manager:  alice@salon.com / bob@salon.com / carol@salon.com")
+        self.stdout.write("  Manager:  alice@salon.com / bob@salon.com / carol@salon.com / dana@salon.com / priya@salon.com / marcus@salon.com")
         self.stdout.write("  Employee: john.stylist@salon.com / tom.barber@salon.com / anna.massage@salon.com")
         self.stdout.write("  Customer: charles.brown@example.com / dana.scully@example.com")
         self.stdout.write("")

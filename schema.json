@@ -441,6 +441,31 @@
                 }
             }
         },
+        "/api/auth/me/": {
+            "get": {
+                "operationId": "auth_me_retrieve",
+                "tags": [
+                    "auth"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomUser"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/auth/password/change/": {
             "post": {
                 "operationId": "auth_password_change_create",
@@ -2222,10 +2247,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/Salon"
-                                    }
+                                    "$ref": "#/components/schemas/Salon"
                                 }
                             }
                         },
@@ -2955,6 +2977,11 @@
                     "bio": {
                         "type": "string",
                         "default": ""
+                    },
+                    "profile_picture": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -3214,6 +3241,12 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "profile_picture": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "readOnly": true
+                    },
                     "position": {
                         "type": "string",
                         "maxLength": 100
@@ -3253,6 +3286,7 @@
                     "email",
                     "employment_date",
                     "id",
+                    "profile_picture",
                     "salon_name",
                     "service_names"
                 ]
@@ -3714,6 +3748,12 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "profile_picture": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "readOnly": true
+                    },
                     "position": {
                         "type": "string",
                         "maxLength": 100
@@ -3972,6 +4012,11 @@
                     },
                     "role": {
                         "$ref": "#/components/schemas/UserRole"
+                    },
+                    "profile_picture": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
                     },
                     "date_of_birth": {
                         "type": "string",

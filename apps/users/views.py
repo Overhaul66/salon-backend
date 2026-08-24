@@ -48,6 +48,17 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 @extend_schema(
     tags=['auth'],
+    responses={200: CustomUserSerializer()},
+)
+class MeView(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request):
+        return Response(CustomUserSerializer(request.user).data, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    tags=['auth'],
     request=RegisterSerializer,
     responses={
         201: inline_serializer(

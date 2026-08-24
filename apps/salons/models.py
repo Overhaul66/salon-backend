@@ -14,7 +14,7 @@ class Salon(BaseModel):
         ('INACTIVE', 'Inactive'),
     )
 
-    manager = models.ForeignKey(SalonManager, on_delete=models.CASCADE, related_name='salons')
+    manager = models.OneToOneField(SalonManager, on_delete=models.CASCADE, related_name='salon')
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True)
     description = models.TextField(blank=True)
