@@ -10,6 +10,7 @@ class Appointment(models.Model):
         ('IN_PROGRESS', 'In Progress'),
         ('COMPLETED', 'Completed'),
         ('CANCELLED', 'Cancelled'),
+        ('DECLINED', 'Declined'),
         ('NO_SHOW', 'No Show'),
     )
 

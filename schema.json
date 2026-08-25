@@ -60,12 +60,13 @@
                                 "CANCELLED",
                                 "COMPLETED",
                                 "CONFIRMED",
+                                "DECLINED",
                                 "IN_PROGRESS",
                                 "NO_SHOW",
                                 "PENDING"
                             ]
                         },
-                        "description": "* `PENDING` - Pending\n* `CONFIRMED` - Confirmed\n* `IN_PROGRESS` - In Progress\n* `COMPLETED` - Completed\n* `CANCELLED` - Cancelled\n* `NO_SHOW` - No Show"
+                        "description": "* `PENDING` - Pending\n* `CONFIRMED` - Confirmed\n* `IN_PROGRESS` - In Progress\n* `COMPLETED` - Completed\n* `CANCELLED` - Cancelled\n* `DECLINED` - Declined\n* `NO_SHOW` - No Show"
                     }
                 ],
                 "tags": [
@@ -2812,19 +2813,22 @@
                     "IN_PROGRESS",
                     "COMPLETED",
                     "CANCELLED",
+                    "DECLINED",
                     "NO_SHOW"
                 ],
                 "type": "string",
-                "description": "* `PENDING` - Pending\n* `CONFIRMED` - Confirmed\n* `IN_PROGRESS` - In Progress\n* `COMPLETED` - Completed\n* `CANCELLED` - Cancelled\n* `NO_SHOW` - No Show"
+                "description": "* `PENDING` - Pending\n* `CONFIRMED` - Confirmed\n* `IN_PROGRESS` - In Progress\n* `COMPLETED` - Completed\n* `CANCELLED` - Cancelled\n* `DECLINED` - Declined\n* `NO_SHOW` - No Show"
             },
             "AppointmentStatusUpdateStatusEnum": {
                 "enum": [
+                    "CONFIRMED",
                     "IN_PROGRESS",
                     "COMPLETED",
-                    "NO_SHOW"
+                    "NO_SHOW",
+                    "DECLINED"
                 ],
                 "type": "string",
-                "description": "* `IN_PROGRESS` - In Progress\n* `COMPLETED` - Completed\n* `NO_SHOW` - No Show"
+                "description": "* `CONFIRMED` - Confirmed\n* `IN_PROGRESS` - In Progress\n* `COMPLETED` - Completed\n* `NO_SHOW` - No Show\n* `DECLINED` - Declined"
             },
             "AvailabilityStatus": {
                 "enum": [

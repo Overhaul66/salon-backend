@@ -106,7 +106,7 @@ def create_appointment(customer, salon, service, date, start_time, booking_notes
         appointment_date=date,
         start_time=start_time,
         end_time=end_time,
-        status='CONFIRMED',
+        status='PENDING',
         booking_notes=booking_notes
     )
     
@@ -130,6 +130,11 @@ def create_appointment(customer, salon, service, date, start_time, booking_notes
             user=employee.user,
             title="New Appointment Assigned",
             message=f"You have been assigned a new appointment for {service.name} on {date} at {start_time}."
+        )
+        send_notification(
+            user=salon.manager.user,
+            title="New Appointment Booked",
+            message=f"A new appointment has been booked at {salon.name} for {service.name} on {date} at {start_time}."
         )
     except Exception:
         # Ignore notifications failures in tests or environments where it isn't configured
@@ -166,20 +171,30 @@ def cancel_appointment(appointment, cancel_reason):
             title="Appointment Cancelled",
             message=f"The appointment on {appointment.appointment_date} at {appointment.start_time} has been cancelled."
         )
+        send_notification(
+            user=appointment.salon.manager.user,
+            title="Appointment Cancelled",
+            message=f"An appointment at {appointment.salon.name} on {appointment.appointment_date} has been cancelled."
+        )
     except Exception:
         pass
     
     return appointment
 
 def update_appointment_status(appointment, status):
-    valid_statuses = ['IN_PROGRESS', 'COMPLETED', 'NO_SHOW']
+    valid_statuses = ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'NO_SHOW', 'DECLINED']
     if status not in valid_statuses:
         raise ValidationError(f"Invalid status transition to {status}.")
-        
+
+    if appointment.status == 'CANCELLED' or appointment.status == 'DECLINED':
+        raise ValidationError("Cannot change the status of a cancelled or declined appointment.")
+
     appointment.status = status
     appointment.save()
-    
-    if status in ['COMPLETED', 'NO_SHOW']:
+
+    # No further action for these states
+    if status == 'NO_SHOW':
+        # Free up the slot (no-show frees the availability just like a completed)
         EmployeeAvailability.objects.filter(
             employee=appointment.employee,
             date=appointment.appointment_date,
@@ -187,16 +202,53 @@ def update_appointment_status(appointment, status):
             end_time=appointment.end_time,
             status='BOOKED'
         ).delete()
-        
-    if status == 'COMPLETED':
-        try:
-            from apps.notifications.services import send_notification
+        # (optional) notify manager? Not required.
+        return appointment
+
+    if status in ['COMPLETED', 'DECLINED']:
+        # Free up the slot regardless (completed or declined frees availability)
+        EmployeeAvailability.objects.filter(
+            employee=appointment.employee,
+            date=appointment.appointment_date,
+            start_time=appointment.start_time,
+            end_time=appointment.end_time,
+            status='BOOKED'
+        ).delete()
+
+    try:
+        from apps.notifications.services import send_notification
+        if status == 'CONFIRMED':
+            send_notification(
+                user=appointment.customer.user,
+                title="Appointment Confirmed",
+                message=f"Your appointment at {appointment.salon.name} for {appointment.service.name} is confirmed."
+            )
+            if hasattr(appointment.salon, 'manager'):
+                send_notification(
+                    user=appointment.salon.manager.user,
+                    title="Appointment Confirmed",
+                    message=f"The appointment at {appointment.salon.name} for {appointment.service.name} has been confirmed."
+                )
+        elif status == 'DECLINED':
+            send_notification(
+                user=appointment.customer.user,
+                title="Appointment Declined",
+                message=f"Unfortunately, your appointment at {appointment.salon.name} for {appointment.service.name} on {appointment.appointment_date} at {appointment.start_time} has been declined. Please book another time."
+            )
+        elif status == 'COMPLETED':
             send_notification(
                 user=appointment.customer.user,
                 title="Appointment Completed",
                 message=f"Thank you for visiting {appointment.salon.name}! Your appointment has been marked as completed."
             )
-        except Exception:
-            pass
-        
+            if hasattr(appointment.salon, 'manager'):
+                send_notification(
+                    user=appointment.salon.manager.user,
+                    title="Appointment Completed",
+                    message=f"An appointment at {appointment.salon.name} for {appointment.service.name} has been completed."
+                )
+    except Exception:
+        # Ignore notification failures
+        pass
+
     return appointment
