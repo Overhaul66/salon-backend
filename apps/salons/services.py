@@ -4,6 +4,8 @@ from .models import Salon, SalonService, SalonImage, BusinessHours
 
 
 def create_salon(manager, name, phone, address, city, country, opening_time, closing_time, slug=None, business_hours=None, **kwargs):
+    if Salon.objects.filter(manager=manager).exists():
+        raise ValidationError("This manager already manages a salon.")
     if not slug:
         slug = slugify(name)
         base_slug = slug

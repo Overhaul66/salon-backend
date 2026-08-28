@@ -49,4 +49,4 @@ class AppointmentCancelSerializer(serializers.Serializer):
 
 
 class AppointmentStatusUpdateSerializer(serializers.Serializer):
-    status = serializers.ChoiceField(choices=[('IN_PROGRESS', 'In Progress'), ('COMPLETED', 'Completed'), ('NO_SHOW', 'No Show')])
+    status = serializers.ChoiceField(choices=[('CONFIRMED', 'Confirmed'), ('IN_PROGRESS', 'In Progress'), ('COMPLETED', 'Completed'), ('NO_SHOW', 'No Show'), ('DECLINED', 'Declined')])

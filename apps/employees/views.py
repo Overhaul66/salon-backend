@@ -43,7 +43,8 @@ class EmployeeManagementViewSet(viewsets.ModelViewSet):
                 last_name=validated_data.get('last_name', ''),
                 phone=validated_data.get('phone', ''),
                 bio=validated_data.get('bio', ''),
-                services=validated_data.get('services')
+                services=validated_data.get('services'),
+                profile_picture=validated_data.get('profile_picture')
             )
         except ValidationError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)

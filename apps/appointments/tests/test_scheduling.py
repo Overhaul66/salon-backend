@@ -79,8 +79,17 @@ class TestSchedulingEngine:
         assert "outside salon business hours" in str(exc.value)
 
     def test_create_salon_accepts_per_day_business_hours(self):
+        # Use a different manager so we don't violate the one-salon-per-manager constraint
+        other_manager_user = register_user(
+            email="manager2@test.com",
+            password="password123",
+            role="SALON_MANAGER",
+            phone="9999999999"
+        )
+        other_manager = other_manager_user.manager_profile
+
         salon = create_salon(
-            manager=self.manager,
+            manager=other_manager,
             name="Custom Hours Salon",
             phone="555-1111",
 

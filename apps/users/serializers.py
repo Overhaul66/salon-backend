@@ -1,11 +1,23 @@
 from rest_framework import serializers
 from .models import CustomUser, Customer, SalonEmployee, SalonManager
-
+from apps.common.fields import Base64ImageField
 class CustomUserSerializer(serializers.ModelSerializer):
+    profile_picture = Base64ImageField(required=False, allow_null=True)
+
     class Meta:
         model = CustomUser
         fields = ('id', 'email', 'first_name', 'last_name', 'phone', 'profile_picture', 'role', 'is_active', 'is_verified', 'created_at', 'updated_at')
         read_only_fields = ('id', 'role', 'is_active', 'is_verified', 'created_at', 'updated_at')
+
+
+class MeUpdateSerializer(serializers.ModelSerializer):
+    """Partial update for the authenticated user's own profile."""
+
+    profile_picture = Base64ImageField(required=False, allow_null=True)
+
+    class Meta:
+        model = CustomUser
+        fields = ('first_name', 'last_name', 'phone', 'profile_picture')
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -32,6 +44,7 @@ class RegisterSerializer(serializers.Serializer):
     last_name = serializers.CharField(required=False, default="", allow_blank=True)
     phone = serializers.CharField(required=False, default="", allow_blank=True)
     role = serializers.ChoiceField(choices=CustomUser.ROLE_CHOICES)
+    profile_picture = Base64ImageField(required=False, allow_null=True)
     
     # Profile fields (optional)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
@@ -44,7 +57,8 @@ class RegisterSerializer(serializers.Serializer):
         return value
 
     def validate_phone(self, value):
-        if CustomUser.objects.filter(phone=value).exists():
+        # Blank phones are allowed (field is optional) - only check real numbers
+        if value and CustomUser.objects.filter(phone=value).exists():
             raise serializers.ValidationError("A user with this phone number already exists.")
         return value
     

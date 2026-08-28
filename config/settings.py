@@ -2,17 +2,14 @@ import os
 from pathlib import Path
 from datetime import timedelta
 import urllib.parse as urlparse
-from decouple import Config, RepositoryEnv
+from decouple import AutoConfig
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables from local.env if exists, otherwise fallback to .env.example
-env_path = BASE_DIR / "local.env"
-if env_path.exists():
-    config = Config(RepositoryEnv(env_path))
-else:
-    config = Config(RepositoryEnv(BASE_DIR / ".env.example"))
+# AutoConfig reads real environment variables first (used by Render/Heroku),
+# then falls back to local.env / .env in BASE_DIR.
+config = AutoConfig(search_path=BASE_DIR)
 
 SECRET_KEY = config("SECRET_KEY", default="django-insecure-%_aijh#dbhvhuzm5!9+1!!tnqjzgg9k-a)i6zi+r#y57c=49g%")
 DEBUG = config("DEBUG", default=True, cast=bool)
@@ -35,8 +32,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "drf_spectacular",
     "drf_spectacular_sidecar",
-    "storages",
-    
+
     # Internal Apps
     "apps.common",
     "apps.users",
@@ -49,6 +45,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware", # Must be before common
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -122,44 +119,54 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_URL = "/media/"
+MEDIA_ROOT = Path(config("MEDIA_ROOT", default=str(BASE_DIR / "media")))
 
 # ==========================
-# MinIO / S3 Storage Configuration (via django-storages S3Boto3Storage)
-# ========================salon==
-USE_MINIO = config("USE_MINIO", default=False, cast=bool)
+# AWS S3 Storage (django-storages + boto3)
+# ==========================
+# Credentials are read from environment variables ONLY - never hardcoded.
+# (See .env.example / render.env.example for the full list of keys.)
+AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID", default="")
+AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY", default="")
+AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default="")
+AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="eu-north-1")
 
-if USE_MINIO:
-    # AWS / S3-compatible (MinIO) Configuration
-    AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID", default="minioadmin")
-    AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY", default="minioadmin")
-    AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default="media")
-    AWS_S3_ENDPOINT_URL = config("AWS_S3_ENDPOINT_URL", default="http://localhost:9000")
-    AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="us-east-1")
-    AWS_S3_ADDRESSING_STYLE = config("AWS_S3_ADDRESSING_STYLE", default="path")
-    AWS_S3_FILE_OVERWRITE = config("AWS_S3_FILE_OVERWRITE", default=False, cast=bool)
-    AWS_QUERYSTRING_AUTH = config("AWS_QUERYSTRING_AUTH", default=False, cast=bool)
-    AWS_DEFAULT_ACL = config("AWS_DEFAULT_ACL", default="public-read")
-    AWS_S3_OBJECT_PARAMETERS = {
-        "CacheControl": "max-age=86400",
-    }
+# Use S3 for uploaded media whenever a bucket name is configured; otherwise
+# fall back to the local filesystem (e.g. local dev / CI without AWS creds).
+_USE_S3_MEDIA = bool(AWS_STORAGE_BUCKET_NAME)
 
-    # Override media settings for MinIO
-    MEDIA_URL = config("MEDIA_URL", default=f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/")
-    # Public host used to build file URLs returned by the API (must be reachable from clients)
-    AWS_S3_CUSTOM_DOMAIN = config("AWS_S3_CUSTOM_DOMAIN", default="")
-    AWS_S3_URL_PROTOCOL = config("AWS_S3_URL_PROTOCOL", default="http:")
-    AWS_S3_USE_SSL = config("AWS_S3_USE_SSL", default=False, cast=bool)
+if _USE_S3_MEDIA:
+    # Let the existing bucket policy / IAM permissions govern object access.
+    # We never try to set ACLs on objects, so the bucket must not be (and is
+    # not) publicly writable - the backend credentials do the uploading.
+    AWS_DEFAULT_ACL = None
+    # Serve plain, unsigned object URLs (the bucket policy already exposes
+    # them publicly) so the API returns clean https://...amazonaws.com URLs.
+    AWS_QUERYSTRING_AUTH = False
+    MEDIA_URL = (
+        f"https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/"
+    )
 
-    STORAGES = {
-        "default": {
-            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-        },
-        "staticfiles": {
-            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
-        },
-    }
+# Images arrive as base64 strings inside JSON payloads (see apps.common.fields).
+# The Django default of 2.5 MB would silently reject them, so raise it.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024
+
+# Maximum size (bytes) of a decoded image accepted by Base64ImageField.
+IMAGE_MAX_BYTES = config("IMAGE_MAX_BYTES", default=10 * 1024 * 1024, cast=int)
+
+STORAGES = {
+    "default": {
+        "BACKEND": (
+            "storages.backends.s3.S3Storage"
+            if _USE_S3_MEDIA
+            else "django.core.files.storage.FileSystemStorage"
+        ),
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -221,3 +228,12 @@ SPECTACULAR_SETTINGS = {
 
 # CORS Configuration
 CORS_ALLOW_ALL_ORIGINS = True
+
+# ==========================
+# Production Security
+# ==========================
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=True, cast=bool)
+    SESSION_COOKIE_SECURE = config("SESSION_COOKIE_SECURE", default=True, cast=bool)
+    CSRF_COOKIE_SECURE = config("CSRF_COOKIE_SECURE", default=True, cast=bool)

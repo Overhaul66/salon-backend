@@ -14,7 +14,7 @@ class Salon(BaseModel):
         ('INACTIVE', 'Inactive'),
     )
 
-    manager = models.ForeignKey(SalonManager, on_delete=models.CASCADE, related_name='salons')
+    manager = models.OneToOneField(SalonManager, on_delete=models.CASCADE, related_name='salon')
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True)
     description = models.TextField(blank=True)
@@ -24,8 +24,10 @@ class Salon(BaseModel):
     country = models.CharField(max_length=100)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    logo = models.ImageField(upload_to='salon_logos/', null=True, blank=True)
-    cover_image = models.ImageField(upload_to='salon_covers/', null=True, blank=True)
+    logo = models.ImageField(upload_to="salon_logos/", null=True, blank=True)
+    cover_image = models.ImageField(
+        upload_to="salon_covers/", null=True, blank=True
+    )
     opening_time = models.TimeField()
     closing_time = models.TimeField()
     gender_type = models.CharField(max_length=15, choices=GENDER_TYPE_CHOICES, default='UNISEX')
@@ -42,7 +44,7 @@ class Salon(BaseModel):
 class SalonImage(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     salon = models.ForeignKey(Salon, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to='salon_gallery/')
+    image = models.ImageField(upload_to="salon_gallery/", null=True, blank=True)
     caption = models.CharField(max_length=255, blank=True)
     order = models.PositiveIntegerField(default=0)
 

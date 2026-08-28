@@ -60,6 +60,8 @@ class SalonViewSet(viewsets.ModelViewSet):
         
     def perform_create(self, serializer):
         manager_profile = self.request.user.manager_profile
+        if hasattr(manager_profile, 'salon'):
+            raise PermissionDenied("You already manage a salon.")
         business_hours = serializer.validated_data.pop('business_hours', [])
         salon = create_salon(
             manager=manager_profile,
@@ -67,12 +69,12 @@ class SalonViewSet(viewsets.ModelViewSet):
             **serializer.validated_data
         )
         serializer.instance = salon
-    
-    # salon manager can get a list of all salon he own, update and delete
+
+    # Salon manager can get, update, or delete their single salon
     @extend_schema(
         methods=['GET'],
         request=None,
-        responses={200: {'type': 'array', 'items': {'$ref': '#/components/schemas/Salon'}}},
+        responses={200: SalonSerializer},
     )
     @extend_schema(
         methods=['PATCH'],
@@ -87,34 +89,21 @@ class SalonViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get', 'patch', 'delete'], permission_classes=[permissions.IsAuthenticated, IsSalonManager])
     def me(self, request):
         manager_profile = request.user.manager_profile
-        salons = Salon.objects.filter(manager=manager_profile)
-        
+        try:
+            salon = manager_profile.salon
+        except Salon.DoesNotExist:
+            return Response({"detail": "You have no salon yet."}, status=status.HTTP_404_NOT_FOUND)
+
         if request.method == 'GET':
-            serializer = self.get_serializer(salons, many=True)
-            return Response(serializer.data)
-            
+            return Response(self.get_serializer(salon).data)
+
         elif request.method == 'PATCH':
-            salon_id = request.data.get('id')
-            if not salon_id:
-                return Response({"detail": "Field 'id' (salon ID) is required to update."}, status=status.HTTP_400_BAD_REQUEST)
-            try:
-                salon = salons.get(id=salon_id)
-            except Salon.DoesNotExist:
-                return Response({"detail": "Salon not found or does not belong to you."}, status=status.HTTP_404_NOT_FOUND)
-                
             serializer = self.get_serializer(salon, data=request.data, partial=True)
             serializer.is_valid(raise_exception=True)
             updated = update_salon(salon, **serializer.validated_data)
             return Response(self.get_serializer(updated).data)
-            
+
         elif request.method == 'DELETE':
-            salon_id = request.data.get('id')
-            if not salon_id:
-                return Response({"detail": "Field 'id' (salon ID) is required to delete."}, status=status.HTTP_400_BAD_REQUEST)
-            try:
-                salon = salons.get(id=salon_id)
-            except Salon.DoesNotExist:
-                return Response({"detail": "Salon not found or does not belong to you."}, status=status.HTTP_404_NOT_FOUND)
             salon.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
 

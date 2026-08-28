@@ -10,109 +10,21 @@ services:
     ports:
       - "5432:5432"
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
-  minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
-    environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+  
 
   web:
     build: .
-    command: python manage.py runserver 0.0.0.0:8000
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app
     ports:
       - "8000:8000"
-    environment:
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/salon_db
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - USE_MINIO=True
-      - AWS_ACCESS_KEY_ID=minioadmin
-      - AWS_SECRET_ACCESS_KEY=minioadmin
-      - AWS_STORAGE_BUCKET_NAME=media
-      - AWS_S3_ENDPOINT_URL=http://minio:9000
-      - AWS_S3_REGION_NAME=us-east-1
-      - AWS_S3_ADDRESSING_STYLE=path
-      - AWS_S3_FILE_OVERWRITE=False
-      - AWS_QUERYSTRING_AUTH=False
-      - AWS_DEFAULT_ACL=public-read
-      - ALLOWED_HOSTS=*
-      - MEDIA_URL=http://10.170.1.169:9000/media/
-      - AWS_S3_CUSTOM_DOMAIN=10.170.1.169:9000/media
-      - "AWS_S3_URL_PROTOCOL=http:"
+    env_file:
+      - .env
     depends_on:
       - db
-      - redis
-      - minio
 
-  celery_worker:
-    build: .
-    command: celery -A config worker --loglevel=info
-    volumes:
-      - .:/app
-    environment:
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/salon_db
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - USE_MINIO=True
-      - AWS_ACCESS_KEY_ID=minioadmin
-      - AWS_SECRET_ACCESS_KEY=minioadmin
-      - AWS_STORAGE_BUCKET_NAME=media
-      - AWS_S3_ENDPOINT_URL=http://minio:9000
-      - AWS_S3_REGION_NAME=us-east-1
-      - AWS_S3_ADDRESSING_STYLE=path
-      - AWS_S3_FILE_OVERWRITE=False
-      - AWS_QUERYSTRING_AUTH=False
-      - AWS_DEFAULT_ACL=public-read
-    depends_on:
-      - db
-      - redis
-      - minio
 
-  celery_beat:
-    build: .
-    command: celery -A config beat --loglevel=info
-    volumes:
-      - .:/app
-    environment:
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/salon_db
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - USE_MINIO=True
-      - AWS_ACCESS_KEY_ID=minioadmin
-      - AWS_SECRET_ACCESS_KEY=minioadmin
-      - AWS_STORAGE_BUCKET_NAME=media
-      - AWS_S3_ENDPOINT_URL=http://minio:9000
-      - AWS_S3_REGION_NAME=us-east-1
-      - AWS_S3_ADDRESSING_STYLE=path
-      - AWS_S3_FILE_OVERWRITE=False
-      - AWS_QUERYSTRING_AUTH=False
-      - AWS_DEFAULT_ACL=public-read
-    depends_on:
-      - db
-      - redis
-      - minio
 
 volumes:
   salon_postgres_data:
-  minio_data:
