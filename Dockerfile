@@ -28,4 +28,4 @@ RUN python manage.py collectstatic --noinput
 EXPOSE 8000
 
 # Run migrations, seed the service catalog, then start the web server
-CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py seed_catalog && python manage.py  && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 120"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py seed_catalog && python manage.py seed_data  && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 120"]

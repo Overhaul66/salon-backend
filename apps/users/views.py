@@ -12,13 +12,14 @@ from .serializers import (
     ChangePasswordSerializer,
     PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer,
-    CustomUserSerializer
+    CustomUserSerializer,
+    MeUpdateSerializer,
 )
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
-        data['user'] = CustomUserSerializer(self.user).data
+        data['user'] = CustomUserSerializer(self.user, context={"request": self.context.get("request")}).data
         return data
 
 # login view
@@ -50,11 +51,33 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     tags=['auth'],
     responses={200: CustomUserSerializer()},
 )
+@extend_schema(
+    methods=['PATCH'],
+    tags=['auth'],
+    request=MeUpdateSerializer,
+    responses={200: CustomUserSerializer()},
+)
 class MeView(APIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request):
-        return Response(CustomUserSerializer(request.user).data, status=status.HTTP_200_OK)
+        return Response(
+            CustomUserSerializer(request.user, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+    def patch(self, request):
+        serializer = MeUpdateSerializer(
+            request.user, data=request.data, partial=True, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        response = Response(
+            CustomUserSerializer(request.user, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+        response.custom_message = "Profile updated successfully."
+        return response
 
 
 @extend_schema(
@@ -90,7 +113,8 @@ class RegisterView(APIView):
         first_name = validated_data.pop('first_name', '')
         last_name = validated_data.pop('last_name', '')
         phone = validated_data.pop('phone', '')
-        
+        profile_picture = validated_data.pop('profile_picture', None)
+
         user = register_user(
             email=email,
             password=password,
@@ -98,12 +122,13 @@ class RegisterView(APIView):
             first_name=first_name,
             last_name=last_name,
             phone=phone,
+            profile_picture=profile_picture,
             **validated_data
         )
         
         refresh = RefreshToken.for_user(user)
         response_data = {
-            "user": CustomUserSerializer(user).data,
+            "user": CustomUserSerializer(user, context={"request": request}).data,
             "tokens": {
                 "refresh": str(refresh),
                 "access": str(refresh.access_token),

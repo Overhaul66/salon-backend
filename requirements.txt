@@ -32,12 +32,10 @@ drf-spectacular-sidecar
 Pillow
 
 # ==========================
-# MinIO / S3 Storage
+# AWS S3 Storage
 # ==========================
-django-minio-backend
+django-storages>=1.14
 boto3
-django-storages
-minio
 
 # ==========================
 # CORS

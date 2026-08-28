@@ -24,6 +24,16 @@ services:
         value: "salon-api.onrender.com"
       - key: MEDIA_ROOT
         value: "/var/data/media"
+      # AWS S3 media storage - set real values in the Render dashboard. The
+      # disk/MEDIA_ROOT above remains only as a fallback for legacy local files.
+      - key: AWS_ACCESS_KEY_ID
+        value: ""
+      - key: AWS_SECRET_ACCESS_KEY
+        value: ""
+      - key: AWS_STORAGE_BUCKET_NAME
+        value: ""
+      - key: AWS_S3_REGION_NAME
+        value: "eu-north-1"
       - key: PYTHON_VERSION
         value: "3.13.2"
     disk:

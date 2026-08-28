@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from .models import Salon, SalonImage, SalonService, BusinessHours, ServiceCatalog
+from apps.common.fields import Base64ImageField
 
 class ServiceCatalogSerializer(serializers.ModelSerializer):
     category_display = serializers.CharField(source='get_category_display', read_only=True)
@@ -43,6 +44,8 @@ class BusinessHoursCreateSerializer(serializers.ModelSerializer):
 
 
 class SalonImageSerializer(serializers.ModelSerializer):
+    image = Base64ImageField(required=False, allow_null=True)
+
     class Meta:
         model = SalonImage
         fields = ('id', 'image', 'caption', 'order')
@@ -65,6 +68,8 @@ class SalonSerializer(serializers.ModelSerializer):
     business_hours = BusinessHoursSerializer(many=True, read_only=True)
     manager_id = serializers.UUIDField(source='manager.id', read_only=True)
     is_favourited = serializers.SerializerMethodField(read_only=True)
+    logo = Base64ImageField(required=False, allow_null=True)
+    cover_image = Base64ImageField(required=False, allow_null=True)
 
     class Meta:
         model = Salon

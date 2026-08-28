@@ -465,6 +465,48 @@
                         "description": ""
                     }
                 }
+            },
+            "patch": {
+                "operationId": "auth_me_partial_update",
+                "tags": [
+                    "auth"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMeUpdate"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMeUpdate"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMeUpdate"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CustomUser"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
             }
         },
         "/api/auth/password/change/": {
@@ -2677,6 +2719,78 @@
                     }
                 }
             }
+        },
+        "/api/uploads/auth/": {
+            "post": {
+                "operationId": "uploads_auth_create",
+                "description": "Issue client-side ImageKit upload authentication parameters.\n\nOnly `token`, `signature`, `expire`, `publicKey` and `urlEndpoint` are\nreturned. The ImageKit private key used to compute the signature stays on\nthe server and is never returned to the client.",
+                "tags": [
+                    "uploads"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImageKitAuthResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/uploads/register/": {
+            "post": {
+                "operationId": "uploads_register_create",
+                "description": "Associate an already-uploaded ImageKit file with the authenticated user.\n\nThe client sends only the ImageKit `file_id`. The canonical metadata is\nfetched from ImageKit on the server and stored with `uploaded_by` pinned\nto `request.user`, so nobody can register or attach someone else's file.",
+                "tags": [
+                    "uploads"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImageKitFileRegister"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImageKitFileRegister"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImageKitFileRegister"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImageKitFile"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -2859,8 +2973,8 @@
                                 "$ref": "#/components/schemas/WeekdayEnum"
                             }
                         ],
-                        "minimum": -2147483648,
-                        "maximum": 2147483647
+                        "minimum": -9223372036854775808,
+                        "maximum": 9223372036854775807
                     },
                     "weekday_display": {
                         "type": "string",
@@ -2895,8 +3009,8 @@
                                 "$ref": "#/components/schemas/WeekdayEnum"
                             }
                         ],
-                        "minimum": -2147483648,
-                        "maximum": 2147483647
+                        "minimum": -9223372036854775808,
+                        "maximum": 9223372036854775807
                     },
                     "opening_time": {
                         "type": "string",
@@ -2984,7 +3098,6 @@
                     },
                     "profile_picture": {
                         "type": "string",
-                        "format": "uri",
                         "nullable": true
                     }
                 },
@@ -3021,7 +3134,6 @@
                     },
                     "profile_picture": {
                         "type": "string",
-                        "format": "uri",
                         "nullable": true
                     },
                     "role": {
@@ -3168,6 +3280,112 @@
                 "type": "string",
                 "description": "* `UNISEX` - Unisex\n* `MEN_ONLY` - Men Only\n* `WOMEN_ONLY` - Women Only"
             },
+            "ImageKitAuthResponse": {
+                "type": "object",
+                "properties": {
+                    "token": {
+                        "type": "string"
+                    },
+                    "signature": {
+                        "type": "string"
+                    },
+                    "expire": {
+                        "type": "integer"
+                    },
+                    "publicKey": {
+                        "type": "string"
+                    },
+                    "urlEndpoint": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "expire",
+                    "publicKey",
+                    "signature",
+                    "token",
+                    "urlEndpoint"
+                ]
+            },
+            "ImageKitFile": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true
+                    },
+                    "file_id": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "file_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "file_path": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true
+                    },
+                    "thumbnail_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true
+                    },
+                    "mime_type": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "size": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "height": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "width": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "file_id",
+                    "file_name",
+                    "file_path",
+                    "height",
+                    "id",
+                    "mime_type",
+                    "size",
+                    "thumbnail_url",
+                    "url",
+                    "width"
+                ]
+            },
+            "ImageKitFileRegister": {
+                "type": "object",
+                "description": "Payload used to attach an ImageKit file to the authenticated user.",
+                "properties": {
+                    "file_id": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "file_id"
+                ]
+            },
             "LoginRequest": {
                 "type": "object",
                 "properties": {
@@ -3247,9 +3465,8 @@
                     },
                     "profile_picture": {
                         "type": "string",
-                        "format": "uri",
-                        "nullable": true,
-                        "readOnly": true
+                        "readOnly": true,
+                        "nullable": true
                     },
                     "position": {
                         "type": "string",
@@ -3754,9 +3971,8 @@
                     },
                     "profile_picture": {
                         "type": "string",
-                        "format": "uri",
-                        "nullable": true,
-                        "readOnly": true
+                        "readOnly": true,
+                        "nullable": true
                     },
                     "position": {
                         "type": "string",
@@ -3790,6 +4006,28 @@
                         "type": "string",
                         "format": "date-time",
                         "readOnly": true
+                    }
+                }
+            },
+            "PatchedMeUpdate": {
+                "type": "object",
+                "description": "Partial update for the authenticated user's own profile.",
+                "properties": {
+                    "first_name": {
+                        "type": "string",
+                        "maxLength": 150
+                    },
+                    "last_name": {
+                        "type": "string",
+                        "maxLength": 150
+                    },
+                    "phone": {
+                        "type": "string",
+                        "maxLength": 20
+                    },
+                    "profile_picture": {
+                        "type": "string",
+                        "nullable": true
                     }
                 }
             },
@@ -3873,12 +4111,10 @@
                     },
                     "logo": {
                         "type": "string",
-                        "format": "uri",
                         "nullable": true
                     },
                     "cover_image": {
                         "type": "string",
-                        "format": "uri",
                         "nullable": true
                     },
                     "opening_time": {
@@ -3958,8 +4194,9 @@
                     },
                     "duration_minutes": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "price": {
                         "type": "string",
@@ -4016,11 +4253,6 @@
                     },
                     "role": {
                         "$ref": "#/components/schemas/UserRole"
-                    },
-                    "profile_picture": {
-                        "type": "string",
-                        "format": "uri",
-                        "nullable": true
                     },
                     "date_of_birth": {
                         "type": "string",
@@ -4151,12 +4383,10 @@
                     },
                     "logo": {
                         "type": "string",
-                        "format": "uri",
                         "nullable": true
                     },
                     "cover_image": {
                         "type": "string",
-                        "format": "uri",
                         "nullable": true
                     },
                     "opening_time": {
@@ -4284,12 +4514,10 @@
                     },
                     "logo": {
                         "type": "string",
-                        "format": "uri",
                         "nullable": true
                     },
                     "cover_image": {
                         "type": "string",
-                        "format": "uri",
                         "nullable": true
                     },
                     "opening_time": {
@@ -4422,7 +4650,7 @@
                     },
                     "image": {
                         "type": "string",
-                        "format": "uri"
+                        "nullable": true
                     },
                     "caption": {
                         "type": "string",
@@ -4430,13 +4658,13 @@
                     },
                     "order": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     }
                 },
                 "required": [
-                    "id",
-                    "image"
+                    "id"
                 ]
             },
             "SalonService": {
@@ -4465,8 +4693,9 @@
                     },
                     "duration_minutes": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "price": {
                         "type": "string",
@@ -4522,8 +4751,9 @@
                     },
                     "duration_minutes": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "price": {
                         "type": "string",

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from apps.users.models import SalonEmployee
 from apps.salons.models import Salon, SalonService
+from apps.common.fields import Base64ImageField
 
 class ManageEmployeeSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', read_only=True)
@@ -11,7 +12,7 @@ class ManageEmployeeSerializer(serializers.ModelSerializer):
     salon_name = serializers.CharField(source='salon.name', read_only=True)
     services = serializers.PrimaryKeyRelatedField(many=True, queryset=SalonService.objects.all(), required=False)
     service_names = serializers.SerializerMethodField(read_only=True)
-    profile_picture = serializers.ImageField(source='user.profile_picture', read_only=True)
+    profile_picture = Base64ImageField(source='user.profile_picture', read_only=True)
 
     class Meta:
         model = SalonEmployee
@@ -35,7 +36,7 @@ class CreateEmployeeSerializer(serializers.Serializer):
     salon_id = serializers.PrimaryKeyRelatedField(queryset=Salon.objects.all(), source='salon')
     service_ids = serializers.PrimaryKeyRelatedField(many=True, queryset=SalonService.objects.all(), source='services', required=False)
     bio = serializers.CharField(required=False, default="", allow_blank=True)
-    profile_picture = serializers.ImageField(required=False, allow_null=True)
+    profile_picture = Base64ImageField(required=False, allow_null=True)
 
 
 class ResetEmployeePasswordSerializer(serializers.Serializer):
